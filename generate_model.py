@@ -26,6 +26,8 @@ def model():
 
     out = tf.reshape(out_l, (-1,), name='output')
 
+    # append :output to the name of every op that is intended to be output
+    # this way I can get what I need
     output_names = ['output']
 
     loss = tf.losses.mean_squared_error(y, out)
