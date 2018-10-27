@@ -14,6 +14,7 @@ TestCase = namedtuple('TestCase', ['arguments', 'expected'])
 def main(pb):
     inputs = ["Placeholder"]
     outputs = ["output"]
+    frozen = ["dense/kernel", "dense/bias", "dense_1/kernel", "dense_1/bias"]
 
     test_cases = [
         TestCase([
@@ -43,21 +44,29 @@ def main(pb):
     with open(pb, 'rb') as b:
         graph_def.ParseFromString(b.read())
     
-    nodes = tf.import_graph_def(graph_def, return_elements=inputs+outputs)
+    nodes = tf.import_graph_def(graph_def, return_elements=inputs+outputs+frozen)
     input_nodes = nodes[:len(inputs)]
     input_tensors = [node.outputs[0] for node in input_nodes]
     # graph = tf.get_default_graph()
     # input_tensors = [graph.get_tensor_by_name(node.name + ":0") for node in input_nodes]
-    output_nodes = nodes[len(inputs):]
+    output_nodes = nodes[len(inputs):len(inputs)+len(outputs)]
     output_tensors = [node.outputs[0] for node in output_nodes]
+
+    frozen_nodes = nodes[len(inputs)+len(outputs):]
+    frozen_tensors = [node.outputs[0] for node in frozen_nodes]
     # print(input_nodes[0].outputs[0])
     print(input_nodes)
     print(input_tensors)
     print(output_nodes)
     print(output_tensors)
 
+    print(frozen_nodes)
+    # print(frozen_tensors)
+
     with tf.Session() as sess:
         # sess.run(tf.global_variables_initializer())
+        for tensor in frozen_tensors:
+            print(tensor, tensor.eval(session=sess))
         for test in test_cases:
             feed_dict=dict(zip(input_tensors, test.arguments))
             actual = sess.run(output_tensors, feed_dict=feed_dict)
