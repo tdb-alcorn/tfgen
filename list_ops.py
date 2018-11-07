@@ -16,6 +16,9 @@ def parse_graph_def(pb):
 def list_ops(graph_def):
     return set(node.op for node in graph_def.node)
 
+def list_children(graph_def, node):
+    return [other for other in graph_def.node if node.name in other.input]
+
 def get_usages(graph_def, op):
     return [node for node in graph_def.node if node.op == op]
 
@@ -33,4 +36,11 @@ if __name__ == '__main__':
     # print('\n'.join(list_ops(graph_def)))
 
     print('\n'.join(map(str, get_usages(graph_def, op_or_name))))
+
+    # nodes = get_usages(graph_def, op_or_name)
+    # children = map(lambda node: list_children(graph_def, node), nodes)
+    # formatted_children = map(lambda cn: 'Num children: ' + str(len(cn)) + '\n' + ', '.join(map(str, cn)), children)
+    # print('\n'.join(formatted_children))
+    
+    # print('\n'.join(map(str, map(lambda n: list_children(graph_def, n), get_usages(graph_def, op_or_name)))))
     # print('\n'.join(map(str, get_nodes_by_name(graph_def, op_or_name))))
