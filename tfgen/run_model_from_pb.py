@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import tensorflow as tf
 from tensorflow.core.framework import graph_pb2
 from tensorflow.python.framework.graph_io import write_graph
