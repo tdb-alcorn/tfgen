@@ -1,7 +1,8 @@
 import random
 import tensorflow as tf
 import numpy as np
-from tfgen.generate_model import save_checkpoint, save_graph, freeze_graph, here
+from tfgen.freeze import save_checkpoint, save_graph, freeze_graph, here
+from tfgen.load import from_checkpoint
 
 
 class MNIST_CNN(object):
@@ -40,20 +41,26 @@ class MNIST_CNN(object):
         # fc1 = tf.layers.Dense(1024, activation=tf.nn.relu,
         fc1 = tf.layers.Dense(64, activation=tf.nn.relu,
             kernel_initializer=tf.initializers.random_normal)(flat)
-        fc2 = tf.layers.Dense(10, activation=tf.nn.relu,
-            kernel_initializer=tf.initializers.random_normal, name='output')(fc1)
+        fc2 = tf.layers.Dense(10, activation=None,
+            kernel_initializer=tf.initializers.random_normal)(fc1)
         
-        out = fc2
+        out = tf.nn.softmax(fc2, name='output')
+        out_cat = tf.argmax(out, axis=1)
 
-        loss = tf.losses.mean_squared_error(y_one_hot, fc2)
+        loss = tf.losses.softmax_cross_entropy(y_one_hot, fc2)
+        # loss = tf.losses.mean_squared_error(y_one_hot, fc2)
+
+        acc, acc_update = tf.metrics.accuracy(y, out_cat)
 
         # append :output to the name of every op that is intended to be output
         # this way I can get what I need
-        output_names = ['output/Relu']
+        output_names = ['output']
 
         train = tf.train.AdamOptimizer(learning_rate=1e-3).minimize(loss)
 
-        return x, y, out, train, loss, output_names
+        saver = tf.train.Saver()
+
+        return x, y, out, train, loss, output_names, acc, acc_update, saver
 
     def batch(self, batch_size):
         if not self.mnist_loaded:
@@ -80,42 +87,64 @@ class MNIST_CNN(object):
 
 
 def main():
-    cnn = MNIST_CNN()
-    inp, label, out, train, loss, output_names = cnn.model()
+    import argparse 
 
-    num_batches = 1000
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--use-checkpoint', dest='use_checkpoint',
+        action='store_const', const=True, default=False,
+        help='use checkpoint')
+    args = parser.parse_args()
+
+    cnn = MNIST_CNN()
+    inp, label, out, train, loss, output_names, acc, acc_update, saver = cnn.model()
+
+    num_batches = 10
     batch_size = 25
 
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
 
-        for i in range(num_batches):
-            x_batch, y_batch = cnn.batch(batch_size)
-            x_batch = x_batch.astype(np.float32)
-            x_batch /= 255.0
+    if args.use_checkpoint:
+        saver.restore(sess, 'ckpt')
 
-            _, loss_batch = sess.run([train, loss], feed_dict={
-                inp: x_batch,
-                label: y_batch,
-            })
-            print("\033[K", end='\r')
-            print("Loss: ", loss_batch, end='\r')
-    
-        x_test, y_test = cnn.test_data()
-        x_test = x_test.astype(np.float32)
-        x_test /= 255.0
-        loss_test = sess.run(loss, feed_dict={
-            inp: x_test,
-            label: y_test,
+    for i in range(num_batches):
+        x_batch, y_batch = cnn.batch(batch_size)
+        x_batch = x_batch.astype(np.float32)
+        x_batch /= 255.0
+
+        _, loss_batch, acc_result, _ = sess.run([train, loss, acc, acc_update], feed_dict={
+            inp: x_batch,
+            label: y_batch,
         })
-        print("Final loss: ", loss_test)
-        print()
+        print("\033[K", end='\r')
+        print("Batch: %d\tLoss: %.3f\tAccuracy: %.3f" % (i, loss_batch, acc_result), end='\r')
+    print()
 
-        ckpt, meta_graph = save_checkpoint(sess)
-        graph_def = save_graph(sess)
-        output_graph = here("frozen.pb")
+    x_test, y_test = cnn.test_data()
+    x_test = x_test.astype(np.float32)
+    x_test /= 255.0
+    acc_inits = [v for v in tf.local_variables() if 'accuracy/' in v.name]
+    sess.run(tf.variables_initializer(acc_inits))
+    loss_test, _ = sess.run([loss, acc_update], feed_dict={
+        inp: x_test,
+        label: y_test,
+    })
+    acc_result = sess.run(acc)
+    print("Batch: TEST\tLoss: %.3f\tAccuracy: %.3f" % (loss_test, acc_result))
 
-        freeze_graph(graph_def, ckpt, meta_graph, output_names, output_graph)
+    ckpt, meta_graph = save_checkpoint(sess)
+    graph_def = save_graph(sess)
+    output_graph = here("frozen.pb")
+
+    freeze_graph(graph_def, ckpt, meta_graph, output_names, output_graph)
+
+    # get the weights from the last dense layer (64x10 matrix)
+    fc2_weights = sess.graph.get_tensor_by_name('dense_1/kernel:0')
+    print(fc2_weights.shape)
+    print(sess.run(fc2_weights))
+
+    sess.close()
 
 
 if __name__ == '__main__':
