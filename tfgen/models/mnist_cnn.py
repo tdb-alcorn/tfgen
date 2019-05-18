@@ -98,7 +98,7 @@ def main():
     cnn = MNIST_CNN()
     inp, label, out, train, loss, output_names, acc, acc_update, saver = cnn.model()
 
-    num_batches = 10
+    num_batches = 1000
     batch_size = 25
 
     sess = tf.Session()
