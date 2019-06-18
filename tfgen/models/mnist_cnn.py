@@ -29,11 +29,13 @@ class MNIST_CNN(object):
         x_normed = x_reshaped
 
         # conv1 = tf.layers.Conv2D(32, [5, 5])(x_normed)
-        conv1 = tf.layers.Conv2D(8, [2, 2])(x_normed)
+        conv1 = tf.layers.Conv2D(8, [2, 2], padding='same')(x_normed)
+        self.conv1 = conv1
         pool1 = tf.layers.MaxPooling2D([2, 2], [2, 2])(conv1)
 
         # conv2 = tf.layers.Conv2D(64, [5, 5])(pool1)
-        conv2 = tf.layers.Conv2D(16, [2, 2])(pool1)
+        conv2 = tf.layers.Conv2D(16, [2, 2], padding='same')(pool1)
+        self.conv2 = conv2
         pool2 = tf.layers.MaxPooling2D([2, 2], [2, 2])(conv2)
 
         flat = tf.layers.Flatten()(pool2)
