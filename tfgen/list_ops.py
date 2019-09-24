@@ -32,7 +32,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Query a tensorflow protobuf file')
     parser.add_argument('input_file', type=str, help='the protobuf file')
     parser.add_argument('command', type=str, help='list, op, name, inputs, children')
-    parser.add_argument('op_or_name', type=str, default='', help='op type or node name')
+    parser.add_argument('--name', dest='op_or_name', type=str, default='', help='op type or node name')
     args = parser.parse_args()
 
     pb_file = args.input_file

@@ -54,7 +54,7 @@ def freeze_from_checkpoint(ckpt, output_names):
 
 if __name__ == '__main__':
     ckpt_path = sys.argv[1]
-    output = sys.argv[2]
+    output = sys.argv[2:]
 #     output_names = ["fco/BiasAdd"]
-    output_names = [output]
+    output_names = output
     freeze_from_checkpoint(ckpt_path, output_names)
